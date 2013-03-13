@@ -42,13 +42,32 @@ struct map_BM_traits {
 	};
 
 
+template <typename Container, typename NeedleIter>
+int OverAndOver ( const Container &haystack, NeedleIter nBegin, NeedleIter nEnd ) {
+	typename Container::const_iterator ret;
+	for ( int i = 0; i < 200; ++i )
+		ret = std::search ( haystack.begin(), haystack.end (), nBegin, nEnd );
+	return ret == haystack.end () ? -1 : std::distance ( haystack.begin(), ret);
+	}
+
 template <typename Container, typename Searcher>
 int OverAndOver ( const Container &haystack, Searcher && searcher ) {
 	typename Container::const_iterator ret;
-	for ( int i = 0; i < 50; ++i )
+	for ( int i = 0; i < 200; ++i )
 		ret = tba::search ( haystack.begin(), haystack.end (), searcher );
-	return ret == haystack.end () ? -1 : std::distance ( haystack.begin(), ret );
+	return ret == haystack.end () ? -1 : std::distance ( haystack.begin(), ret);
 	}
+
+template <typename Container>
+duration std_search ( const Container &haystack, const Container &needle, int expected ) {
+	auto start = std::chrono::high_resolution_clock::now ();
+	int ret = OverAndOver ( haystack, needle.begin (), needle.end ());
+	duration elapsed = std::chrono::duration_cast<duration> ( std::chrono::high_resolution_clock::now () - start );
+	if ( ret != expected )
+		std::cerr << "Unexpected return from std_searcher; got " << ret << ", expected " << expected << std::endl;
+	return elapsed;
+	}
+
 
 template <typename Container>
 duration default_search ( const Container &haystack, const Container &needle, int expected ) {
@@ -128,6 +147,7 @@ template <typename T>
 double dur_pct ( T whole, T part ) { return 100 * double (part.count ()) / double (whole.count ()); }
 
 typedef struct {
+	stats stds;
 	stats def;
 	stats def_p;
 	stats bm;
@@ -155,20 +175,23 @@ void check_one (  const Container &haystack, const Container &needle, int where,
 	
 
 //	std::cout << "Needle is " << needle.size () << " entries long\n";
+	duration stds = std_search ( haystack, needle, expected );
+//	std::cout << "Standard search took       :             " << stds.count ()        << "\t(" << dur_pct ( stds, stds ) << ")" << std::endl;
 	duration def = default_search ( haystack, needle, expected );
-//	std::cout << "Default search took       :             " << def.count ()        << "\t(" << dur_pct ( def, def ) << ")" << std::endl;
+//	std::cout << "Default search took       :             " << def.count ()        << "\t(" << dur_pct ( stds, def ) << ")" << std::endl;
 	duration def_p = default_search ( haystack, needle, expected );
-//	std::cout << "Default search w/pred took:             " << def_p.count ()      << "\t(" << dur_pct ( def, def_p ) << ")" << std::endl;
+//	std::cout << "Default search w/pred took:             " << def_p.count ()      << "\t(" << dur_pct ( stds, def_p ) << ")" << std::endl;
 	duration bm = bm_search ( haystack, needle, expected );
-//	std::cout << "Boyer-Moore search took:                " << bm.count ()         << "\t(" << dur_pct ( def, bm ) << ")" << std::endl;
+//	std::cout << "Boyer-Moore search took:                " << bm.count ()         << "\t(" << dur_pct ( stds, bm ) << ")" << std::endl;
 	duration bm_map = bm_search_map ( haystack, needle, expected );
-//	std::cout << "Boyer-Moore (map) search took:          " << bm_map.count ()     << "\t(" << dur_pct ( def, bm_map ) << ")" << std::endl;
+//	std::cout << "Boyer-Moore (map) search took:          " << bm_map.count ()     << "\t(" << dur_pct ( stds, bm_map ) << ")" << std::endl;
 	duration bmh = bmh_search ( haystack, needle, expected );
-//	std::cout << "Boyer-Moore-Horspool search took:       " << bmh.count ()        << "\t(" << dur_pct ( def, bmh ) << ")" << std::endl;
+//	std::cout << "Boyer-Moore-Horspool search took:       " << bmh.count ()        << "\t(" << dur_pct ( stds, bmh ) << ")" << std::endl;
 	duration bmh_map = bmh_search_map ( haystack, needle, expected );
-//	std::cout << "Boyer-Moore-Horspool (map) search took: " << bmh_map.count ()    << "\t(" << dur_pct ( def, bmh_map ) << ")" << std::endl;
+//	std::cout << "Boyer-Moore-Horspool (map) search took: " << bmh_map.count ()    << "\t(" << dur_pct ( stds, bmh_map ) << ")" << std::endl;
 
 //	Add the stats into the accumulators
+	st.stds.add    ( stds.count ());
 	st.def.add     ( def.count ());
 	st.def_p.add   ( def_p.count ());
 	st.bm.add      ( bm.count ());
@@ -268,7 +291,8 @@ int main ( int argc, char *argv[] ) {
 
 	for ( int i = 0; i < 4; ++i )
 		for ( int j = 0; j < 3; ++j ) {
-			double whole = gStats[i][j].def.mean ();
+			double whole = gStats[i][j].stds.mean ();
+			print ( i, j, gStats[i][j].stds,    whole );
 			print ( i, j, gStats[i][j].def,     whole );
 			print ( i, j, gStats[i][j].def_p,   whole );
 			print ( i, j, gStats[i][j].bm,      whole );
