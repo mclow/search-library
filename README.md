@@ -1,7 +1,10 @@
 search-library
 ==============
 
-A generic C++ searching library, proposed for inclusion in the C++ standard library
+A generic C++ searching library, proposed for inclusion in the C++ standard library.
+
+The original proposal was [n3411](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3411.pdf), but the interface has been changed based on feedback from the Library Working Group. An updated paper describing the new interface should be available soon.
+
 
 There are three test programs, unimaginatively named `basic_tests.cpp`, `timing_tests.cpp` and `random_test.cpp`
 
