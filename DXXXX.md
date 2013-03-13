@@ -130,11 +130,11 @@ The Boyer-Moore algorithm requires that both the corpus and the pattern be repre
 
 Using the new interface with the existing search algorithms should fulfill all the performance guarantees for the current interface of `std::search`. No additional comparisons are necessary. However, the creation of the searcher object may add some additional overhead.
 
-In [my tests](https://github.com/mclow/search-library), on medium sized search patterns (about 100 entries), the Boyer-Moore and Boyer-Moore-Horspool were about 10x faster than `std::search`. For longer patterns, the advantage increases. For short patterns, they may actually be slower. 
+In [my tests](https://github.com/mclow/search-library), on medium sized search patterns (about 100 entries), the Boyer-Moore and Boyer-Moore-Horspool were about 8-10x faster than `std::search`. For longer patterns, the advantage increases. For short patterns, they may actually be slower. 
 
 #### Test timings
 
-These results were run on a MacBookPro (i5) computer, compiled with clang, and compared against libc++.  The corpus was about 2.8MB of base64-encoded text. All timings are normalized against `std::search`. In these tests, the search object was created anew for each search; they were not saved and reused. If this were to be done, the times should be even better.
+These results were run on a MacBookPro (i5) computer, compiled with clang, and compared against libc++.  The corpus was about 2.8MB of base64-encoded text. All timings are normalized against `std::search`.
 
 The titles of the test indicate where the pattern is located in the corpus being searched; "At Start", etc. "Not found" is the case where the pattern does not exist in the corpus, i.e, the search will fail.
 
