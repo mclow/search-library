@@ -96,11 +96,10 @@ A reasonable description (with sample code) is available on [Wikipedia](http://e
 
 The Boyer-Moore algorithm requires that both the corpus and the pattern be represented with random-access iterators.
 
-### Code
+### Calls to be added to the standard library
 
 		template <typename Iterator, typename Searcher>
 		Iterator search ( Iterator first, Iterator last, Searcher &&searcher );
-
 
 		template <typename Iterator>
 		_unspecified_ make_searcher ( Iterator first, Iterator last );
@@ -128,7 +127,7 @@ The Boyer-Moore algorithm requires that both the corpus and the pattern be repre
 		
 ### Performance
 
-Using the new interface with the existing search algorithms should fulfill all the performance guarantees for the current interface of `std::search`. No additional comparisons are necessary. However, the creation of the searcher object may add some additional overhead.
+Using the new interface with the existing search algorithms should fulfill all the performance guarantees for the current interface of `std::search`. No additional comparisons are necessary. However, the creation of the search object may add some additional overhead. Different algorithms will have different amounts of overhead to create the search object. The `default_search` objects, for example, should be cheap to create - they will typically be a pair of iterators. The Boyer-Moore search object, on the other hand, will contain a pair of tables, and require a significant amount of computation to create.
 
 In [my tests](https://github.com/mclow/search-library), on medium sized search patterns (about 100 entries), the Boyer-Moore and Boyer-Moore-Horspool were about 8-10x faster than `std::search`. For longer patterns, the advantage increases. For short patterns, they may actually be slower. 
 
@@ -147,5 +146,6 @@ The titles of the test indicate where the pattern is located in the corpus being
     <tr><td>Boyer-Moore Horspool</td><td>82.14</td><td>11.8</td><td>20.04</td><td>10.41</td></tr>
 </table>
 
+### Sample Implementation
 
-
+An implementation of this proposal, available under the [Boost Software License](http://www.boost.org/LICENSE_1_0.txt) can be found on [GitHub](https://github.com/mclow/search-library)
