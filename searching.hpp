@@ -159,9 +159,10 @@ namespace detail {
         template <typename corpusIter>
         corpusIter operator () ( corpusIter corpus_first, corpusIter corpus_last ) const {
             static_assert ( std::is_same<
-                    typename std::iterator_traits<patIter>::value_type, 
-                    typename std::iterator_traits<corpusIter>::value_type>::value,
-                    "Corpus and Haystack iterators must point to the same type" );
+                    typename std::decay<typename std::iterator_traits<patIter>   ::value_type>::type, 
+                    typename std::decay<typename std::iterator_traits<corpusIter>::value_type>::type
+                    	>::value,
+                    "Corpus and Pattern iterators must point to the same type" );
 
             if ( corpus_first == corpus_last ) return corpus_last;  // if nothing to search, we didn't find it!
             if (    pat_first ==    pat_last ) return corpus_first; // empty pattern matches at start
@@ -309,9 +310,10 @@ namespace detail {
         template <typename corpusIter>
         corpusIter operator () ( corpusIter corpus_first, corpusIter corpus_last ) const {
             static_assert ( std::is_same<
-                    typename std::iterator_traits<patIter>::value_type, 
-                    typename std::iterator_traits<corpusIter>::value_type>::value,
-                    "Corpus and Haystack iterators must point to the same type" );
+                    typename std::decay<typename std::iterator_traits<patIter>   ::value_type>::type, 
+                    typename std::decay<typename std::iterator_traits<corpusIter>::value_type>::type
+                    	>::value,
+                    "Corpus and Pattern iterators must point to the same type" );
 
             if ( corpus_first == corpus_last ) return corpus_last;  // if nothing to search, we didn't find it!
             if (    pat_first ==    pat_last ) return corpus_first; // empty pattern matches at start
