@@ -39,8 +39,12 @@ A search object that used a very simple search pattern might be:
 						if ( cFirst == cLast )
 							return cLast;
 					}
-				//	Is this a full match?
-					if ( std::equal ( first_, last_, cFirst ))
+				//	At this point, we know that the first element matches
+					Iterator it1 = first_;
+					Iterator2 it2 = cFirst;
+					while ( it1 != last_ && it2 != cLast && *++it1 == *++it2 )
+						;
+					if ( it1 == last_ ) // matched the whole pattern
 						return cFirst;
 					++cFirst;
 					}
@@ -77,7 +81,7 @@ _Note: Even though the table contains one entry for each element that occurs in 
 The second table contains one entry for each element in the pattern; a `std::vector<pattern_length>` works well. Each entry in the table is basically the amount that the matching window can be moved when a mismatch is found.
 The Boyer-Moore algorithm works by at each position, comparing an element in the pattern to one in the corpus. If it matches, it advances to the next element in both the pattern and the corpus. If the end of the pattern is reached, then a match has been found, and can be returned. If the elements being compared do not match, then the precomputed tables are consulted to determine where to position the pattern in the corpus, and what position in the pattern to resume the matching.
 
-The Boyer-Moore algorithm requires that both the corpus and the pattern be represented with random-access iterators.
+The Boyer-Moore algorithm requires that both the corpus and the pattern be represented with random-access iterators, and that both iterator types "point to" the same type (or at least `decay<typename iterator_traits<Iterator1>::value_type>::type` and `decay<typename iterator_traits<Iterator2>::value_type>::type` are the same).
 
 ### Boyer-Moore-Horspool
 
@@ -87,7 +91,7 @@ Like the Boyer-Moore algorithm, it has a table that (logically) contains one ent
 
 A reasonable description (with sample code) is available on [Wikipedia](http://en.wikipedia.org/wiki/Boyer%E2%80%93Moore%E2%80%93Horspool_algorithm).
 
-The Boyer-Moore-Horspool algorithm requires that both the corpus and the pattern be represented with random-access iterators.
+The Boyer-Moore algorithm requires that both the corpus and the pattern be represented with random-access iterators, and that both iterator types "point to" the same type (or at least `decay<typename iterator_traits<Iterator1>::value_type>::type` and `decay<typename iterator_traits<Iterator2>::value_type>::type` are the same).
 
 ### Calls to be added to the standard library
 
