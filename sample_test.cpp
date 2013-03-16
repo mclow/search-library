@@ -10,41 +10,40 @@
 #include <string>
 #include <iostream>
 
-template <typename Iterator>
-class sample_searcher {
-public:
-	sample_searcher ()							             = delete;
-	sample_searcher ( Iterator first, Iterator last ) :
-		first_ ( first ), last_ ( last ) {}
-	sample_searcher ( const sample_searcher & )              = default;
-	sample_searcher ( sample_searcher && )	               	 = default;
-	sample_searcher & operator = ( const sample_searcher & ) = default;
-	sample_searcher & operator = ( sample_searcher && )	     = default;
-	~sample_searcher ()						                 = default;
+		template <typename Iterator>
+		class sample_searcher {
+		public:
+			sample_searcher ( Iterator first, Iterator last ) :
+				first_ ( first ), last_ ( last ) {}
 
-	template <typename CorpusIterator>
-	CorpusIterator operator () ( CorpusIterator cFirst, CorpusIterator cLast ) const {
-		if ( first_ == last_ ) return cFirst;	// empty needle
-		if ( cFirst == cLast ) return cLast;	// empty CorpusIterator
-		while ( cFirst != cLast ) {
-		//	Advance to the first match
-			while ( *cFirst != *first_ ) {
-				cFirst++;
-				if ( cFirst == cLast )
-					return cLast;
-			}
-		//	Is this a full match?
-			if ( std::equal ( first_, last_, cFirst ))
-				return cFirst;
-			cFirst++;
-			}
-		return cLast;	// didn't find anything
-		}
+			template <typename Iterator2>
+			Iterator2 operator () ( Iterator2 cFirst, Iterator2 cLast ) const {
+				if ( first_ == last_ ) return cFirst;	// empty pattern
+				if ( cFirst == cLast ) return cLast;	// empty corpus
+				while ( cFirst != cLast ) {
+				//	Advance to the first match
+					while ( *cFirst != *first_ ) {
+						++cFirst;
+						if ( cFirst == cLast )
+							return cLast;
+					}
+				//	At this point, we know that the first element matches
+				//	and neither the corpus nor pattern are empty
+					Iterator it1 = first_;
+					Iterator2 it2 = cFirst;
+					while ( it1 != last_ && it2 != cLast && *++it1 == *++it2 )
+						;
+					if ( it1 == last_ ) // we matched the whole pattern
+						return cFirst;
+					++cFirst;
+					}
+				return cLast;	// didn't find anything
+				}
 
-private:
-	Iterator first_;
-	Iterator last_;
-	};
+		private:
+			Iterator first_;
+			Iterator last_;
+			};
 
 
 
