@@ -16,56 +16,25 @@
 namespace tba {
 
 template <typename Iterator, typename Searcher>
-Iterator search ( Iterator first, Iterator last, Searcher &&searcher ) {
+Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
 	return searcher ( first, last );
 	}
 
-namespace detail {
-
-	template <typename Iterator>
+	template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>>
 	class default_searcher {
 	public:
-		default_searcher ()							               = delete;
-		default_searcher ( Iterator first, Iterator last ) :
-			first_ ( first ), last_ ( last ) {}
-		default_searcher ( const default_searcher & )              = default;
-		default_searcher ( default_searcher && )	               = default;
-		default_searcher & operator = ( const default_searcher & ) = default;
-		default_searcher & operator = ( default_searcher && )	   = default;
-		~default_searcher ()						               = default;
+		default_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) :
+			first_ ( first ), last_ ( last ), pred_ ( pred ) {}
 	
 		template <typename CorpusIterator>
 		CorpusIterator operator () ( CorpusIterator cFirst, CorpusIterator cLast ) const {
-			return std::search ( cFirst, cLast, first_, last_ );
+			return std::search ( cFirst, cLast, first_, last_, pred_ );
 			}
 	
 	private:
 		Iterator first_;
 		Iterator last_;
-		};
-
-
-	template <typename Iterator, typename Pred>
-	class default_searcher_with_predicate {
-	public:
-		default_searcher_with_predicate ()							  = delete;
-		default_searcher_with_predicate ( Iterator first, Iterator last, Pred p ) :
-			first_ ( first ), last_ ( last ), p_ (p) {}
-		default_searcher_with_predicate ( const default_searcher_with_predicate & )            = default;
-		default_searcher_with_predicate ( default_searcher_with_predicate && )	               = default;
-		default_searcher_with_predicate & operator = ( const default_searcher_with_predicate & ) = default;
-		default_searcher_with_predicate & operator = ( default_searcher_with_predicate && )	   = default;
-		~default_searcher_with_predicate ()						               = default;
-	
-		template <typename CorpusIterator>
-		CorpusIterator operator () ( CorpusIterator cFirst, CorpusIterator cLast ) const {
-			return std::search ( cFirst, cLast, first_, last_, p_ );
-			}
-	
-	private:
-		Iterator first_;
-		Iterator last_;
-		Pred p_;
+		BinaryPredicate pred_;
 		};
 
 
@@ -128,13 +97,12 @@ namespace detail {
         };
 
 
-    template <typename patIter, typename traits = BM_traits<patIter>>
+    template <typename patIter, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<patIter>::value_type>, typename traits = BM_traits<patIter>>
     class boyer_moore_searcher {
         typedef typename std::iterator_traits<patIter>::difference_type difference_type;
     public:
-		boyer_moore_searcher ()							  = delete;
-        boyer_moore_searcher ( patIter first, patIter last ) 
-                : pat_first ( first ), pat_last ( last ),
+        boyer_moore_searcher ( patIter first, patIter last, BinaryPredicate pred = BinaryPredicate ()) 
+                : pat_first ( first ), pat_last ( last ), pred_ ( pred ),
                   k_pattern_length ( std::distance ( pat_first, pat_last )),
                   skip_ ( k_pattern_length, -1 ),
                   suffix_ ( k_pattern_length + 1 )
@@ -143,13 +111,6 @@ namespace detail {
             this->build_suffix_table ( first, last );
             }
             
-        ~boyer_moore_searcher () {}
-        boyer_moore_searcher ( const boyer_moore_searcher &rhs ) = default;
-        boyer_moore_searcher ( boyer_moore_searcher &&rhs ) = default;
-        
-        boyer_moore_searcher & operator = ( const boyer_moore_searcher &rhs ) = default;
-        boyer_moore_searcher & operator = ( boyer_moore_searcher &&rhs ) = default;
-
         /// \fn operator ( corpusIter corpus_first, corpusIter corpus_last )
         /// \brief Searches the corpus for the pattern that was passed into the constructor
         /// 
@@ -178,6 +139,7 @@ namespace detail {
             
     private:
         patIter pat_first, pat_last;
+        BinaryPredicate pred_;
         const difference_type k_pattern_length;
         typename traits::skip_table_t skip_;
         std::vector <difference_type> suffix_;
@@ -274,13 +236,12 @@ namespace detail {
         };
 
 
-    template <typename patIter, typename traits = BM_traits<patIter>>
+    template <typename patIter, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<patIter>::value_type>, typename traits = BM_traits<patIter>>
     class boyer_moore_horspool_searcher {
         typedef typename std::iterator_traits<patIter>::difference_type difference_type;
     public:
-		boyer_moore_horspool_searcher ()							  = delete;
-        boyer_moore_horspool_searcher ( patIter first, patIter last ) 
-                : pat_first ( first ), pat_last ( last ),
+        boyer_moore_horspool_searcher ( patIter first, patIter last, BinaryPredicate pred = BinaryPredicate ()) 
+                : pat_first ( first ), pat_last ( last ), pred_ ( pred ),
                   k_pattern_length ( std::distance ( pat_first, pat_last )),
                   skip_ ( k_pattern_length, k_pattern_length ) {
                   
@@ -327,6 +288,7 @@ namespace detail {
 
     private:
         patIter pat_first, pat_last;
+        BinaryPredicate pred_;
         const difference_type k_pattern_length;
         typename traits::skip_table_t skip_;
 
@@ -357,26 +319,19 @@ namespace detail {
             }
         };
     
+template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>>
+default_searcher<Iterator, BinaryPredicate> make_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
+	return default_searcher<Iterator, BinaryPredicate> ( first, last, pred );
 	}
 
-template <typename Iterator>
-detail::default_searcher<Iterator> make_searcher ( Iterator first, Iterator last ) {
-	return detail::default_searcher<Iterator> ( first, last );
+template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>, typename traits=BM_traits<Iterator>>
+boyer_moore_searcher<Iterator, BinaryPredicate, traits> make_boyer_moore_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
+	return boyer_moore_searcher<Iterator, BinaryPredicate, traits> ( first, last, pred );
 	}
 
-template <typename Iterator, typename Pred>
-detail::default_searcher_with_predicate<Iterator, Pred> make_searcher ( Iterator first, Iterator last, Pred p ) {
-	return detail::default_searcher_with_predicate<Iterator, Pred> ( first, last, p );
-	}
-
-template <typename Iterator, typename traits=detail::BM_traits<Iterator>>
-detail::boyer_moore_searcher<Iterator, traits> make_boyer_moore_searcher ( Iterator first, Iterator last ) {
-	return detail::boyer_moore_searcher<Iterator, traits> ( first, last );
-	}
-
-template <typename Iterator, typename traits=detail::BM_traits<Iterator>>
-detail::boyer_moore_horspool_searcher<Iterator, traits> make_boyer_moore_horspool_searcher ( Iterator first, Iterator last ) {
-	return detail::boyer_moore_horspool_searcher<Iterator, traits> ( first, last );
+template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>, typename traits=BM_traits<Iterator>>
+boyer_moore_horspool_searcher<Iterator, BinaryPredicate, traits> make_boyer_moore_horspool_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
+	return boyer_moore_horspool_searcher<Iterator, BinaryPredicate, traits> ( first, last, pred );
 	}
 
 }

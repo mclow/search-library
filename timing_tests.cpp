@@ -24,7 +24,7 @@ template<typename Iterator>
 struct map_BM_traits {
 	typedef typename std::iterator_traits<Iterator>::difference_type value_type;
 	typedef typename std::iterator_traits<Iterator>::value_type key_type;
-	typedef tba::detail::skip_table<key_type, value_type, false> skip_table_t;
+	typedef tba::skip_table<key_type, value_type, false> skip_table_t;
 	};
 
 
