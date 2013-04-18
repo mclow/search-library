@@ -46,6 +46,10 @@
 			};
 
 
+template <typename Iterator, typename Searcher>
+Iterator do_const_search ( Iterator first, Iterator last, const Searcher &s ) {
+	return tba::search ( first, last, s );
+	}
 
 
 template<typename Container>
@@ -60,10 +64,15 @@ void check_one ( const Container &haystack, const std::string &needle, int expec
 
 	iter_type it0  = std::search ( hBeg, hEnd, nBeg, nEnd );
 	iter_type it1  = tba::search ( hBeg, hEnd, sample_searcher<pattern_type> ( nBeg, nEnd ));
+	iter_type it2  = do_const_search  ( hBeg, hEnd, sample_searcher<pattern_type> ( nBeg, nEnd ));
 
 	if ( it0 != it1 ) {
 		std::cerr << "## Mismatch between std::search and sample_search " 
 				  << std::distance ( hBeg, it0 ) << " vs " << std::distance ( hBeg, it1 ) << std::endl;
+		}
+	if ( it0 != it2 ) {
+		std::cerr << "## Mismatch between std::search and sample_search " 
+				  << std::distance ( hBeg, it0 ) << " vs " << std::distance ( hBeg, it2 ) << std::endl;
 		}
 	}
 

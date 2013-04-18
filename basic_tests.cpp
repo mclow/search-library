@@ -31,7 +31,7 @@ struct my_equals {
 		iter_type it2  = tba::search ( hBeg, hEnd, tba::make_searcher ( nBeg, nEnd, my_equals<typename Container::value_type>()));
 		iter_type it3  = tba::search ( hBeg, hEnd, tba::make_boyer_moore_searcher ( nBeg, nEnd ));
 		iter_type it4  = tba::search ( hBeg, hEnd, tba::make_boyer_moore_horspool_searcher ( nBeg, nEnd ));
-		const int dist = it1 == hEnd ? -1 : std::distance ( hBeg, it1 );
+		const typename std::iterator_traits<iter_type>::difference_type dist = it1 == hEnd ? -1 : std::distance ( hBeg, it1 );
 
 //		std::cout << "(Iterators) Pattern is " << needle.length () << ", haysstack is " << haystack.length () << " chars long; " << std::endl;
 		try {
@@ -79,7 +79,7 @@ struct my_equals {
 		}
 
 
-int main ( int argc, char *argv[] ) {
+int main ( int, char ** ) {
 	std::string haystack1 ( "NOW AN FOWE\220ER ANNMAN THE ANPANMANEND" );
 	std::string needle1	  ( "ANPANMAN" );
 	std::string needle2	  ( "MAN THE" );
