@@ -106,7 +106,7 @@ namespace detail {
         skip_map skip_;
         const value_type k_default_value;
     public:
-        skip_table ( std::size_t patSize, value_type default_value ) : k_default_value ( default_value ) {
+        skip_table ( std::size_t /*patSize*/, value_type default_value ) : k_default_value ( default_value ) {
             std::fill_n ( skip_.begin(), skip_.size(), default_value );
             }
         
@@ -187,7 +187,6 @@ namespace detail {
         /// 
         /// \param corpus_first The start of the data to search (Random Access Iterator)
         /// \param corpus_last  One past the end of the data to search
-        /// \param p            A predicate used for the search comparisons.
         ///
         template <typename corpusIter>
         corpusIter do_search ( corpusIter corpus_first, corpusIter corpus_last ) const {
@@ -227,8 +226,8 @@ namespace detail {
         
 
         template<typename Iter, typename Container>
-        void compute_bm_prefix ( Iter pat_first, Iter pat_last, Container &prefix ) {
-            const std::size_t count = std::distance ( pat_first, pat_last );
+        void compute_bm_prefix ( Iter first, Iter last, Container &prefix ) {
+            const std::size_t count = std::distance ( first, last );
             assert ( count > 0 );
             assert ( prefix.size () == count );
                             
@@ -236,26 +235,26 @@ namespace detail {
             std::size_t k = 0;
             for ( std::size_t i = 1; i < count; ++i ) {
                 assert ( k < count );
-                while ( k > 0 && ( pat_first[k] != pat_first[i] )) {
+                while ( k > 0 && ( first[k] != first[i] )) {
                     assert ( k < count );
                     k = prefix [ k - 1 ];
                     }
                     
-                if ( pat_first[k] == pat_first[i] )
+                if ( first[k] == first[i] )
                     k++;
                 prefix [ i ] = k;
                 }
             }
 
-        void build_suffix_table ( patIter pat_first, patIter pat_last ) {
-            const std::size_t count = (std::size_t) std::distance ( pat_first, pat_last );
+        void build_suffix_table ( patIter first, patIter last ) {
+            const std::size_t count = (std::size_t) std::distance ( first, last );
             
             if ( count > 0 ) {  // empty pattern
                 std::vector<typename std::iterator_traits<patIter>::value_type> reversed(count);
-                (void) std::reverse_copy ( pat_first, pat_last, reversed.begin ());
+                (void) std::reverse_copy ( first, last, reversed.begin ());
                 
                 std::vector<difference_type> prefix (count);
-                compute_bm_prefix ( pat_first, pat_last, prefix );
+                compute_bm_prefix ( first, last, prefix );
         
                 std::vector<difference_type> prefix_reversed (count);
                 compute_bm_prefix ( reversed.begin (), reversed.end (), prefix_reversed );
@@ -305,7 +304,6 @@ namespace detail {
         /// 
         /// \param corpus_first The start of the data to search (Random Access Iterator)
         /// \param corpus_last  One past the end of the data to search
-        /// \param p            A predicate used for the search comparisons.
         ///
         template <typename corpusIter>
         corpusIter operator () ( corpusIter corpus_first, corpusIter corpus_last ) const {
@@ -337,7 +335,6 @@ namespace detail {
         /// 
         /// \param corpus_first The start of the data to search (Random Access Iterator)
         /// \param corpus_last  One past the end of the data to search
-        /// \param k_corpus_length The length of the corpus to search
         ///
         template <typename corpusIter>
         corpusIter do_search ( corpusIter corpus_first, corpusIter corpus_last ) const {
