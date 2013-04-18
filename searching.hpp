@@ -102,13 +102,13 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         typedef typename std::iterator_traits<patIter>::difference_type difference_type;
     public:
         boyer_moore_searcher ( patIter first, patIter last, BinaryPredicate pred = BinaryPredicate ()) 
-                : pat_first ( first ), pat_last ( last ), pred_ ( pred ),
-                  k_pattern_length ( std::distance ( pat_first, pat_last )),
+                : first_ ( first ), last_ ( last ), pred_ ( pred ),
+                  k_pattern_length ( std::distance ( first_, last_ )),
                   skip_ ( k_pattern_length, -1 ),
                   suffix_ ( k_pattern_length + 1 )
             {
-            this->build_skip_table   ( first, last );
-            this->build_suffix_table ( first, last );
+            this->build_skip_table   ( first_, last_ );
+            this->build_suffix_table ( first_, last_ );
             }
             
         /// \fn operator ( corpusIter corpus_first, corpusIter corpus_last )
@@ -125,8 +125,8 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
                     	>::value,
                     "Corpus and Pattern iterators must point to the same type" );
 
-            if ( corpus_first == corpus_last ) return corpus_last;  // if nothing to search, we didn't find it!
-            if (    pat_first ==    pat_last ) return corpus_first; // empty pattern matches at start
+            if ( corpus_first == corpus_last  ) return corpus_last;  // if nothing to search, we didn't find it!
+            if (       first_ ==        last_ ) return corpus_first; // empty pattern matches at start
 
             const difference_type k_corpus_length  = std::distance ( corpus_first, corpus_last );
         //  If the pattern is larger than the corpus, we can't find it!
@@ -138,7 +138,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
             
     private:
-        patIter pat_first, pat_last;
+        patIter first_, last_;
         BinaryPredicate pred_;
         const difference_type k_pattern_length;
         typename traits::skip_table_t skip_;
@@ -161,7 +161,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         /*  while ( std::distance ( curPos, corpus_last ) >= k_pattern_length ) { */
             //  Do we match right where we are?
                 j = k_pattern_length;
-                while ( pat_first [j-1] == curPos [j-1] ) {
+                while ( first_ [j-1] == curPos [j-1] ) {
                     j--;
                 //  We matched - we're done!
                     if ( j == 0 )
@@ -241,13 +241,13 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         typedef typename std::iterator_traits<patIter>::difference_type difference_type;
     public:
         boyer_moore_horspool_searcher ( patIter first, patIter last, BinaryPredicate pred = BinaryPredicate ()) 
-                : pat_first ( first ), pat_last ( last ), pred_ ( pred ),
-                  k_pattern_length ( std::distance ( pat_first, pat_last )),
+                : first_ ( first ), last_ ( last ), pred_ ( pred ),
+                  k_pattern_length ( std::distance ( first_, last_ )),
                   skip_ ( k_pattern_length, k_pattern_length ) {
                   
             std::size_t i = 0;
-            if ( first != last )    // empty pattern?
-                for ( patIter iter = first; iter != last-1; ++iter, ++i )
+            if ( first_ != last_ )    // empty pattern?
+                for ( patIter iter = first_; iter != last_-1; ++iter, ++i )
                     skip_.insert ( *iter, k_pattern_length - 1 - i );
             }
             
@@ -274,8 +274,8 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
                     	>::value,
                     "Corpus and Pattern iterators must point to the same type" );
 
-            if ( corpus_first == corpus_last ) return corpus_last;  // if nothing to search, we didn't find it!
-            if (    pat_first ==    pat_last ) return corpus_first; // empty pattern matches at start
+            if ( corpus_first == corpus_last  ) return corpus_last;  // if nothing to search, we didn't find it!
+            if (       first_ ==        last_ ) return corpus_first; // empty pattern matches at start
 
             const difference_type k_corpus_length  = std::distance ( corpus_first, corpus_last );
         //  If the pattern is larger than the corpus, we can't find it!
@@ -287,7 +287,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
 
     private:
-        patIter pat_first, pat_last;
+        patIter first_, last_;
         BinaryPredicate pred_;
         const difference_type k_pattern_length;
         typename traits::skip_table_t skip_;
@@ -305,7 +305,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             while ( curPos <= lastPos ) {
             //  Do we match right where we are?
                 std::size_t j = k_pattern_length - 1;
-                while ( pat_first [j] == curPos [j] ) {
+                while ( first_ [j] == curPos [j] ) {
                 //  We matched - we're done!
                     if ( j == 0 )
                         return curPos;
