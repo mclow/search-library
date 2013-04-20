@@ -15,9 +15,23 @@ struct my_equals {
 	bool operator () ( const T &one, const T &two ) const { return one == two; }
 	};
 
+bool ciequal ( char one, char two ) {
+	if ( one >= 'a' && one <= 'z' ) one -= 'a' - 'A';
+	if ( two >= 'a' && two <= 'z' ) two -= 'a' - 'A';
+	return one == two;
+}
+	
+size_t cihash ( char one ) {
+	if ( one >= 'a' && one <= 'z' ) one -= 'a' - 'A';
+	return std::hash<char> () ( one );
+}
+
 //	Check using iterators
-	template<typename Container>
-	void check_one_iter ( const Container &haystack, const std::string &needle, int expected ) {
+	template<typename Container, 
+             typename Hash =            typename std::hash    <typename Container::value_type>,
+             typename BinaryPredicate = typename std::equal_to<typename Container::value_type>>
+	void check_one_iter ( const Container &haystack, const std::string &needle, int expected,
+				Hash hash = Hash (), BinaryPredicate pred = BinaryPredicate ()) {
 		typedef typename Container::const_iterator iter_type;
 		typedef std::string::const_iterator pattern_type;
 		
@@ -30,7 +44,7 @@ struct my_equals {
 		iter_type it1  = tba::search ( hBeg, hEnd, tba::make_searcher ( nBeg, nEnd ));
 		iter_type it2  = tba::search ( hBeg, hEnd, tba::make_searcher ( nBeg, nEnd, my_equals<typename Container::value_type>()));
 		iter_type it3  = tba::search ( hBeg, hEnd, tba::make_boyer_moore_searcher ( nBeg, nEnd ));
-		iter_type it4  = tba::search ( hBeg, hEnd, tba::make_boyer_moore_horspool_searcher ( nBeg, nEnd ));
+//		iter_type it4  = tba::search ( hBeg, hEnd, tba::make_boyer_moore_horspool_searcher ( nBeg, nEnd ));
 		const typename std::iterator_traits<iter_type>::difference_type dist = it1 == hEnd ? -1 : std::distance ( hBeg, it1 );
 
 //		std::cout << "(Iterators) Pattern is " << needle.length () << ", haysstack is " << haystack.length () << " chars long; " << std::endl;
@@ -50,10 +64,10 @@ struct my_equals {
 					std::string ( "results mismatch between std::search and tba::search (bm_searcher)" ));
 				}
 
-			if ( it0 != it4 ) {
-				throw std::runtime_error ( 
-					std::string ( "results mismatch between std::search and tba::search (bmh_searcher)" ));
-				}
+//			if ( it0 != it4 ) {
+//				throw std::runtime_error ( 
+//					std::string ( "results mismatch between std::search and tba::search (bmh_searcher)" ));
+//				}
 			}
 
 		catch ( ... ) {
@@ -63,7 +77,7 @@ struct my_equals {
 			std::cout << "	tba:	  " << std::distance ( hBeg, it1 ) << "\n";
 			std::cout << "	tba(red): " << std::distance ( hBeg, it2 ) << "\n";
 			std::cout << "	bm:	      " << std::distance ( hBeg, it3 ) << "\n";
-			std::cout << "	bmh:      " << std::distance ( hBeg, it4 ) << "\n";
+//			std::cout << "	bmh:      " << std::distance ( hBeg, it4 ) << "\n";
 			std::cout << std::flush;
 			throw ;
 			}
@@ -76,6 +90,7 @@ struct my_equals {
 	template<typename Container>
 	void check_one ( const Container &haystack, const std::string &needle, int expected ) {
 		check_one_iter ( haystack, needle, expected );
+		check_one_iter ( haystack, needle, expected, cihash, ciequal );
 		}
 
 

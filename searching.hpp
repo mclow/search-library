@@ -41,14 +41,14 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
 //
 //  Default implementations of the skip tables for B-M and B-M-H
 //
-    template<typename key_type, typename value_type, bool /*useArray*/> class skip_table;
+    template<typename key_type, typename value_type, typename BinaryPredicate, bool /*useArray*/> class skip_table;
 
 //  General case for data searching other than bytes; use a map
-    template<typename key_type, typename value_type>
-    class skip_table<key_type, value_type, false> {
+    template<typename key_type, typename value_type, typename BinaryPredicate>
+    class skip_table<key_type, value_type, BinaryPredicate, false> {
     private:
         const value_type k_default_value;
-        std::unordered_map<key_type, value_type> skip_;
+        std::unordered_map<key_type, value_type, BinaryPredicate> skip_;
         
     public:
         skip_table () = delete;
@@ -67,8 +67,8 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         
     
 //  Special case small numeric values; use an array
-    template<typename key_type, typename value_type>
-    class skip_table<key_type, value_type, true> {
+    template<typename key_type, typename value_type, typename BinaryPredicate>
+    class skip_table<key_type, value_type, BinaryPredicate, true> {
     private:
         typedef typename std::make_unsigned<key_type>::type unsigned_key_type;
         typedef std::array<value_type, 1U << (CHAR_BIT * sizeof(key_type))> skip_map;
@@ -88,27 +88,28 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
         };
 
-    template<typename Iterator>
+    template<typename Iterator, typename BinaryPredicate>
     struct BM_traits {
         typedef typename std::iterator_traits<Iterator>::difference_type value_type;
         typedef typename std::iterator_traits<Iterator>::value_type key_type;
-        typedef skip_table<key_type, value_type, 
+        typedef skip_table<key_type, value_type, BinaryPredicate, 
                 std::is_integral<key_type>::value && (sizeof(key_type)==1)> skip_table_t;
         };
 
 
-    template <typename patIter, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<patIter>::value_type>, typename traits = BM_traits<patIter>>
+    template <typename ForwardIterator, typename Hash, typename BinaryPredicate>
     class boyer_moore_searcher {
-        typedef typename std::iterator_traits<patIter>::difference_type difference_type;
+        typedef typename std::iterator_traits<ForwardIterator>::difference_type difference_type;
+        typedef typename std::iterator_traits<ForwardIterator>::value_type      value_type;
     public:
-        boyer_moore_searcher ( patIter first, patIter last, BinaryPredicate pred = BinaryPredicate ()) 
-                : first_ ( first ), last_ ( last ), pred_ ( pred ),
+        boyer_moore_searcher ( ForwardIterator first, ForwardIterator last, Hash hash, BinaryPredicate pred )
+                : first_ ( first ), last_ ( last ), hash_ ( hash ), pred_ ( pred ),
                   k_pattern_length ( std::distance ( first_, last_ )),
-                  skip_ ( k_pattern_length, -1 ),
+                  skip_ ( k_pattern_length, hash_, pred_ ),
                   suffix_ ( k_pattern_length + 1 )
             {
             this->build_skip_table   ( first_, last_ );
-            this->build_suffix_table ( first_, last_ );
+            this->build_suffix_table ( first_, last_, pred_ );
             }
             
         /// \fn operator ( corpusIter corpus_first, corpusIter corpus_last )
@@ -117,11 +118,12 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         /// \param corpus_first The start of the data to search (Random Access Iterator)
         /// \param corpus_last  One past the end of the data to search
         ///
-        template <typename corpusIter>
-        corpusIter operator () ( corpusIter corpus_first, corpusIter corpus_last ) const {
+        template <typename RandomAccessIterator>
+        RandomAccessIterator 
+        operator () ( RandomAccessIterator corpus_first, RandomAccessIterator corpus_last ) const {
             static_assert ( std::is_same<
-                    typename std::decay<typename std::iterator_traits<patIter>   ::value_type>::type, 
-                    typename std::decay<typename std::iterator_traits<corpusIter>::value_type>::type
+                    typename std::decay<typename std::iterator_traits<ForwardIterator>     ::value_type>::type, 
+                    typename std::decay<typename std::iterator_traits<RandomAccessIterator>::value_type>::type
                     	>::value,
                     "Corpus and Pattern iterators must point to the same type" );
 
@@ -138,10 +140,12 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
             
     private:
-        patIter first_, last_;
-        BinaryPredicate pred_;
+        ForwardIterator first_;
+        ForwardIterator last_;
+        Hash hash_;					//	do I need this?
+        BinaryPredicate pred_;		//	I'm pretty sure I need this
         const difference_type k_pattern_length;
-        typename traits::skip_table_t skip_;
+        std::unordered_map<value_type, difference_type, Hash, BinaryPredicate> skip_;
         std::vector <difference_type> suffix_;
 
         /// \fn operator ( corpusIter corpus_first, corpusIter corpus_last, Pred p )
@@ -161,7 +165,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
         /*  while ( std::distance ( curPos, corpus_last ) >= k_pattern_length ) { */
             //  Do we match right where we are?
                 j = k_pattern_length;
-                while ( first_ [j-1] == curPos [j-1] ) {
+                while ( pred_ ( first_ [j-1], curPos [j-1] )) {
                     j--;
                 //  We matched - we're done!
                     if ( j == 0 )
@@ -169,7 +173,10 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
                     }
                 
             //  Since we didn't match, figure out how far to skip forward
-                k = skip_ [ curPos [ j - 1 ]];
+         	//	k = skip_ [ ];
+	            auto it = skip_.find ( curPos [ j - 1 ] );
+                k = it == skip_.end () ? k_pattern_length : it->second;
+         	
                 m = j - k - 1;
                 if ( k < j && m > suffix_ [ j ] )
                     curPos += m;
@@ -181,14 +188,15 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
 
 
-        void build_skip_table ( patIter first, patIter last ) {
+        void build_skip_table ( ForwardIterator first, ForwardIterator last ) {
             for ( std::size_t i = 0; first != last; ++first, ++i )
-                skip_.insert ( *first, i );
+            	skip_ [ *first ] = i;
+          //    skip_.insert ( *first, i );
             }
         
 
         template<typename Iter, typename Container>
-        void compute_bm_prefix ( Iter first, Iter last, Container &prefix ) {
+        void compute_bm_prefix ( Iter first, Iter last, BinaryPredicate pred, Container &prefix ) {
             const std::size_t count = std::distance ( first, last );
             assert ( count > 0 );
             assert ( prefix.size () == count );
@@ -197,29 +205,29 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             std::size_t k = 0;
             for ( std::size_t i = 1; i < count; ++i ) {
                 assert ( k < count );
-                while ( k > 0 && ( first[k] != first[i] )) {
+                while ( k > 0 && !pred ( first[k], first[i] )) {
                     assert ( k < count );
                     k = prefix [ k - 1 ];
                     }
                     
-                if ( first[k] == first[i] )
+                if ( pred ( first[k], first[i] ))
                     k++;
                 prefix [ i ] = k;
                 }
             }
 
-        void build_suffix_table ( patIter first, patIter last ) {
+        void build_suffix_table ( ForwardIterator first, ForwardIterator last, BinaryPredicate pred ) {
             const std::size_t count = (std::size_t) std::distance ( first, last );
             
             if ( count > 0 ) {  // empty pattern
-                std::vector<typename std::iterator_traits<patIter>::value_type> reversed(count);
+                std::vector<typename std::iterator_traits<ForwardIterator>::value_type> reversed(count);
                 (void) std::reverse_copy ( first, last, reversed.begin ());
                 
                 std::vector<difference_type> prefix (count);
-                compute_bm_prefix ( first, last, prefix );
+                compute_bm_prefix ( first, last, pred, prefix );
         
                 std::vector<difference_type> prefix_reversed (count);
-                compute_bm_prefix ( reversed.begin (), reversed.end (), prefix_reversed );
+                compute_bm_prefix ( reversed.begin (), reversed.end (), pred, prefix_reversed );
                 
                 for ( std::size_t i = 0; i <= count; i++ )
                     suffix_[i] = count - prefix [count-1];
@@ -235,8 +243,8 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             }
         };
 
-
-    template <typename patIter, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<patIter>::value_type>, typename traits = BM_traits<patIter>>
+#if 0
+    template <typename patIter, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<patIter>::value_type>, typename traits = BM_traits<patIter, BinaryPredicate>>
     class boyer_moore_horspool_searcher {
         typedef typename std::iterator_traits<patIter>::difference_type difference_type;
     public:
@@ -250,16 +258,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
                 for ( patIter iter = first_; iter != last_-1; ++iter, ++i )
                     skip_.insert ( *iter, k_pattern_length - 1 - i );
             }
-            
-        boyer_moore_horspool_searcher ( const boyer_moore_horspool_searcher &rhs ) = default;
-        boyer_moore_horspool_searcher (       boyer_moore_horspool_searcher &&rhs ) = default;
-        
-        boyer_moore_horspool_searcher & operator = ( const boyer_moore_horspool_searcher &rhs ) = default;
-        boyer_moore_horspool_searcher & operator = (       boyer_moore_horspool_searcher &&rhs ) = default;
 
-            
-        ~boyer_moore_horspool_searcher () {}
-        
         /// \fn operator ( corpusIter corpus_first, corpusIter corpus_last, Pred p )
         /// \brief Searches the corpus for the pattern that was passed into the constructor
         /// 
@@ -305,7 +304,7 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             while ( curPos <= lastPos ) {
             //  Do we match right where we are?
                 std::size_t j = k_pattern_length - 1;
-                while ( first_ [j] == curPos [j] ) {
+                while ( pred_ ( first_ [j], curPos [j] )) {
                 //  We matched - we're done!
                     if ( j == 0 )
                         return curPos;
@@ -318,20 +317,25 @@ Iterator search ( Iterator first, Iterator last, const Searcher &searcher ) {
             return corpus_last;
             }
         };
-    
+#endif
+
 template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>>
 default_searcher<Iterator, BinaryPredicate> make_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
 	return default_searcher<Iterator, BinaryPredicate> ( first, last, pred );
 	}
 
-template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>, typename traits=BM_traits<Iterator>>
-boyer_moore_searcher<Iterator, BinaryPredicate, traits> make_boyer_moore_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
-	return boyer_moore_searcher<Iterator, BinaryPredicate, traits> ( first, last, pred );
+template <typename ForwardIterator, 
+          typename Hash =            typename std::hash    <typename std::iterator_traits<ForwardIterator>::value_type>,
+          typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<ForwardIterator>::value_type>>
+boyer_moore_searcher<ForwardIterator, Hash, BinaryPredicate> make_boyer_moore_searcher ( 
+	ForwardIterator first, ForwardIterator last, Hash hash = Hash (), BinaryPredicate pred = BinaryPredicate ()) {
+	return boyer_moore_searcher<ForwardIterator, Hash, BinaryPredicate> ( first, last, hash, pred );
 	}
 
-template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>, typename traits=BM_traits<Iterator>>
+#if 0
+template <typename Iterator, typename BinaryPredicate = typename std::equal_to<typename std::iterator_traits<Iterator>::value_type>, typename traits=BM_traits<Iterator, BinaryPredicate>>
 boyer_moore_horspool_searcher<Iterator, BinaryPredicate, traits> make_boyer_moore_horspool_searcher ( Iterator first, Iterator last, BinaryPredicate pred = BinaryPredicate ()) {
 	return boyer_moore_horspool_searcher<Iterator, BinaryPredicate, traits> ( first, last, pred );
 	}
-
+#endif
 }
