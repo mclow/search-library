@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <cassert>
 #include <type_traits>
+#include <climits>
 
 namespace tba {
 
